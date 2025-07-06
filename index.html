@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🌊 Ocean Money 🐬</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #003973, #E5E5BE);
+      color: white;
+      text-align: center;
+      overflow-x: hidden;
+    }
+    header {
+      padding: 20px;
+      font-size: 2em;
+      text-shadow: 0 0 10px #00f0ff;
+    }
+    .dolphin {
+      font-size: 80px;
+      display: inline-block;
+      animation: spin 8s linear infinite;
+      filter: drop-shadow(0 0 10px #00f0ff);
+    }
+    .wave {
+      font-size: 40px;
+      animation: pulse 2s ease-in-out infinite;
+      filter: drop-shadow(0 0 5px #00f0ff);
+    }
+    @keyframes spin {
+      0% { transform: rotateY(0); }
+      100% { transform: rotateY(360deg); }
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+    }
+    input, button {
+      padding: 12px;
+      width: 100%;
+      margin-top: 10px;
+      border-radius: 10px;
+      border: none;
+      font-size: 1em;
+    }
+    button {
+      background-color: #00c2ff;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 0 15px #00f0ff;
+    }
+    button:hover {
+      background-color: #008bb5;
+    }
+    .dashboard {
+      margin-top: 30px;
+      padding: 10px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+    }
+    .level {
+      margin: 10px;
+      padding: 15px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 15px;
+      box-shadow: 0 0 10px #00f0ff;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <span class="wave">🌊</span> Ocean Money <span class="dolphin">🐬</span>
+  </header>
+
+  <div class="container">
+    <div>
+      <p>Connecte ton portefeuille pour commencer</p>
+      <button onclick="connectWallet()">🔐 Connecter le portefeuille</button>
+      <p id="wallet"></p>
+      <input type="text" id="ref" placeholder="ID du parrain (ex: 1)" />
+      <button onclick="register()">✅ S'inscrire (0.0087 BNB)</button>
+      <p id="status"></p>
+    </div>
+
+    <div class="dashboard" id="dashboard" style="display:none;">
+      <h2>📊 Tableau de bord</h2>
+      <p><b>ID:</b> <span id="userId"></span></p>
+      <p><b>Adresse:</b> <span id="userAddr"></span></p>
+      <p><b>Référent:</b> <span id="userRef"></span></p>
+      <p><b>Parrainage:</b> <span id="refLink"></span></p>
+      <div id="levels"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <script>
+    const contractAddress = "0xdFf797C7983387415a444fc10a32b9e965125a33";
+    const abi = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"level","type":"uint256"}],"name":"LevelActivated","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"PaymentSent","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"address","name":"referrer","type":"address"}],"name":"Registered","type":"event"},{"inputs":[],"name":"LEVEL_COUNT","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"level","type":"uint256"}],"name":"activateLevel","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"userAddr","type":"address"}],"name":"getUserInfo","outputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"referrer","type":"address"},{"internalType":"uint256","name":"registrationDate","type":"uint256"},{"internalType":"bool[8]","name":"levels","type":"bool[8]"},{"internalType":"uint256","name":"totalEarned","type":"uint256"},{"internalType":"string","name":"username","type":"string"},{"internalType":"string","name":"profilePhoto","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"referrer","type":"address"}],"name":"register","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"users","outputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"referrer","type":"address"},{"internalType":"uint256","name":"registrationDate","type":"uint256"},{"internalType":"uint256","name":"totalEarned","type":"uint256"},{"internalType":"string","name":"username","type":"string"},{"internalType":"string","name":"profilePhoto","type":"string"}],"stateMutability":"view","type":"function"}];
+
+    let web3;
+    let userAccount;
+    let contract;
+
+    async function connectWallet() {
+      if (window.ethereum) {
+        web3 = new Web3(window.ethereum);
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const accounts = await web3.eth.getAccounts();
+        userAccount = accounts[0];
+        document.getElementById("wallet").innerText = userAccount;
+        contract = new web3.eth.Contract(abi, contractAddress);
+        loadDashboard();
+      } else {
+        alert("Installez MetaMask ou SafePal !");
+      }
+    }
+
+    function getRefFromURL() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const refId = urlParams.get("ref");
+      if (refId) {
+        fetchRefAddress(refId);
+      }
+    }
+
+    async function fetchRefAddress(refId) {
+      const refAddress = await contract.methods.idToAddress(refId).call();
+      document.getElementById("ref").value = refAddress;
+    }
+
+    async function register() {
+      const ref = document.getElementById("ref").value;
+      document.getElementById("status").innerText = "En attente de confirmation...";
+      try {
+        await contract.methods.register(ref).send({
+          from: userAccount,
+          value: web3.utils.toWei("0.0087", "ether"),
+        });
+        document.getElementById("status").innerText = "✅ Inscription réussie !";
+        loadDashboard();
+      } catch (error) {
+        console.error(error);
+        document.getElementById("status").innerText = "❌ Erreur : " + error.message;
+      }
+    }
+
+    async function loadDashboard() {
+      const user = await contract.methods.getUserInfo(userAccount).call();
+      document.getElementById("dashboard").style.display = "block";
+      document.getElementById("userId").innerText = user.id;
+      document.getElementById("userAddr").innerText = userAccount;
+      document.getElementById("userRef").innerText = user.referrer;
+      document.getElementById("refLink").innerText = `${window.location.origin}?ref=${user.id}`;
+
+      const levelContainer = document.getElementById("levels");
+      levelContainer.innerHTML = "";
+      for (let i = 1; i <= 7; i++) {
+        const active = user.levels[i] ? "✅ Activé" : "❌ Inactif";
+        const div = document.createElement("div");
+        div.className = "level";
+        div.innerHTML = `<h4>Niveau ${i}</h4><p>${active}</p>`;
+        levelContainer.appendChild(div);
+      }
+    }
+
+    window.onload = getRefFromURL;
+  </script>
+</body>
+  </html>
+  
